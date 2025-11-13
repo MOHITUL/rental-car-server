@@ -72,19 +72,27 @@ async function run() {
         // get all cars added by a specific provider
         app.get('/my-listings', async (req, res) => {
             const email = req.query.email;
-            const query = {providerEmail: email};
+            const query = { providerEmail: email };
             const result = await carCollection.find(query).toArray();
             res.send(result);
         })
 
         // featured car
-
         app.get("/featured", async (req, res) => {
-            const cars = await carCollection.find().sort({_id: -1}).limit(6).toArray();
+            const cars = await carCollection.find().sort({ _id: -1 }).limit(6).toArray();
             res.send(cars);
         });
 
-        
+        // search
+        app.get("/search", async (req, res) => {
+            const { name } = req.query;
+            const query = {carName: {$regex: name, $options: "i"}};
+            const cars = await db.collection("cars").find(query).toArray();
+            res.send(cars);
+
+        })
+
+
         // get bookings for a user
         app.get('/bookings', async (req, res) => {
             const email = req.query.email;
@@ -96,16 +104,16 @@ async function run() {
         // delete car
         app.delete('/cars/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {_id: new ObjectId(id)};
+            const query = { _id: new ObjectId(id) };
             const result = await carCollection.deleteOne(query);
             res.send(result);
         })
 
         // update car
-        app.put('/cars/:id', async (req, res) =>{
+        app.put('/cars/:id', async (req, res) => {
             const id = req.params.id;
             const updatedCar = req.body;
-            const query = {_id: new ObjectId(id)};
+            const query = { _id: new ObjectId(id) };
             const updateDoc = {
                 $set: {
                     carName: updatedCar.carName,
@@ -122,11 +130,11 @@ async function run() {
             res.send(result);
         })
 
-        
 
 
 
-        
+
+
 
 
 
