@@ -56,18 +56,42 @@ async function run() {
             res.send(car)
         })
 
-        // update car status
-        app.patch('/cars/:id/book', async (req, res) => {
-            const id = req.params.id;
-            const filter = { _id: new ObjectId(id) };
-            const updateDoc = {
-                $set: {
-                    status: "unavailable"
+
+        // BOOK CAR 
+        app.patch("/cars/:id/book", async (req, res) => {
+            const { id } = req.params;
+            const { userEmail, userName } = req.body;
+
+            if (!userEmail) {
+                return res.status(400).json({ error: "userEmail is required" });
+            }
+
+            try {
+                const result = await carCollection.updateOne(
+                    {
+                        _id: new ObjectId(id),
+                        status: "available"
+                    },
+                    {
+                        $set: {
+                            status: "unavailable",
+                            bookedBy: userEmail,
+                            bookedByName: userName || "Guest",
+                            bookedAt: new Date()
+                        }
+                    }
+                );
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).json({ error: "Car not available or already booked" });
                 }
-            };
-            const result = await carCollection.updateOne(filter, updateDoc);
-            res.send(result);
-        })
+
+                res.json({ success: true, message: "Car booked!" });
+            } catch (err) {
+                console.error(err);
+                res.status(500).json({ error: "Server error" });
+            }
+        });
 
         // get all cars added by a specific provider
         app.get('/my-listings', async (req, res) => {
@@ -86,20 +110,28 @@ async function run() {
         // search
         app.get("/search", async (req, res) => {
             const { name } = req.query;
-            const query = {carName: {$regex: name, $options: "i"}};
+            const query = { carName: { $regex: name, $options: "i" } };
             const cars = await db.collection("cars").find(query).toArray();
             res.send(cars);
 
         })
 
-
-        // get bookings for a user
+        // Get bookings for a specific user
         app.get('/bookings', async (req, res) => {
-            const email = req.query.email;
-            const query = { userEmail: email };
-            const bookings = await db.collection("bookings").find(query).toArray();
-            res.send(bookings);
+            try {
+                const email = req.query.email;
+                if (!email) {
+                    return res.status(400).send({ message: "Email is required" });
+                }
+                const bookings = await carCollection.find({ bookedBy: email }).toArray();
+                res.send(bookings);
+            } catch (error) {
+                console.error("Error fetching bookings:", error);
+                res.status(500).send({ message: "Internal Server Error" });
+            }
         });
+
+
 
         // delete car
         app.delete('/cars/:id', async (req, res) => {
